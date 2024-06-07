@@ -1,0 +1,9 @@
+fastapi
+sqlalchemy
+pydantic
+uvicorn
+psycopg2-binary
+//se activa el entorno virtual, y se instalan las librerias de arriba. Esto es para los servicios web
+pip install -r requirements.txt //para instalar todo lo de requirements
+
+al ejecutar: uvicorn main:app --host 0.0.0.0 --port 8080
