@@ -37,8 +37,6 @@ truncate_table('public.department')
 
 # Reiniciar secuencias manualmente
 reset_sequence('public."Position_id_seq"')
-#reset_sequence('public."User_UUID_seq"')
-#reset_sequence('public.employee_UUID_seq')
 reset_sequence('public.allowance_id_seq')
 reset_sequence('public.deduction_id_seq')
 reset_sequence('public.employee_allowances_id_seq')
@@ -69,6 +67,7 @@ def create_positions(num):
     return position_ids
 
 def create_users(num):
+    user_uuids = []
     for _ in range(num):
         user_uuid = str(uuid.uuid4())
         name = truncate(fake.name(), 80)
@@ -80,7 +79,9 @@ def create_users(num):
             VALUES (%s, %s, %s, %s, %s)
             RETURNING "UUID";
         ''', (user_uuid, name, password, username, role_fk))
+        user_uuids.append(user_uuid)
         conn.commit()
+    return user_uuids
 
 def create_employees(num, position_ids):
     employee_uuids = []
@@ -105,6 +106,7 @@ def create_employees(num, position_ids):
     return employee_uuids
 
 def create_allowances(num):
+    allowance_ids = []
     for _ in range(num):
         name = truncate(fake.bs(), 80)
         description = truncate(fake.text(max_nb_chars=150), 150)
@@ -113,9 +115,13 @@ def create_allowances(num):
             VALUES (DEFAULT, %s, %s)
             RETURNING id;
         ''', (name, description))
+        allowance_id = cur.fetchone()[0]
+        allowance_ids.append(allowance_id)
         conn.commit()
+    return allowance_ids
 
 def create_deductions(num):
+    deduction_ids = []
     for _ in range(num):
         name = truncate(fake.bs(), 80)
         description = truncate(fake.text(max_nb_chars=150), 150)
@@ -124,12 +130,15 @@ def create_deductions(num):
             VALUES (DEFAULT, %s, %s)
             RETURNING id;
         ''', (name, description))
+        deduction_id = cur.fetchone()[0]
+        deduction_ids.append(deduction_id)
         conn.commit()
+    return deduction_ids
 
-def create_employee_allowances(num, employee_uuids):
+def create_employee_allowances(num, employee_uuids, allowance_ids):
     for _ in range(num):
         employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
-        allowance_fk = random.randint(1, 15)  # Ajustar según los IDs de allowance existentes
+        allowance_fk = random.choice(allowance_ids)  # Usar IDs válidos de allowance
         payroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
         effective_date = fake.date()
         date_created = fake.unix_time()
@@ -141,10 +150,10 @@ def create_employee_allowances(num, employee_uuids):
         ''', (employee_fk, allowance_fk, payroll_type_fk, effective_date, date_created, amount))
         conn.commit()
 
-def create_employee_deductions(num, employee_uuids):
+def create_employee_deductions(num, employee_uuids, deduction_ids):
     for _ in range(num):
         employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
-        deduction_fk = random.randint(1, 15)  # Ajustar según los IDs de deduction existentes
+        deduction_fk = random.choice(deduction_ids)  # Usar IDs válidos de deduction
         payroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
         amount = round(random.uniform(100, 1000), 2)
         effective_date = fake.date()
@@ -172,6 +181,7 @@ def create_employee_extra_hours(num, employee_uuids):
         conn.commit()
 
 def create_payrolls(num):
+    payroll_ids = []
     for _ in range(num):
         paroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
         reference_number = truncate(fake.unique.ean(length=8), 80)
@@ -184,11 +194,14 @@ def create_payrolls(num):
             VALUES (DEFAULT, %s, %s, %s, %s, %s, %s)
             RETURNING id;
         ''', (paroll_type_fk, reference_number, status, date_from, date_to, date_created))
+        payroll_id = cur.fetchone()[0]
+        payroll_ids.append(payroll_id)
         conn.commit()
+    return payroll_ids
 
-def create_payslips(num, employee_uuids):
+def create_payslips(num, employee_uuids, payroll_ids):
     for _ in range(num):
-        payroll_fk = random.randint(1, 10)  # Ajustar según los IDs de payroll existentes
+        payroll_fk = random.choice(payroll_ids)  # Usar IDs válidos de payroll
         employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
         present = random.randint(0, 30)
         absent = random.randint(0, 30)
@@ -205,6 +218,7 @@ def create_payslips(num, employee_uuids):
         conn.commit()
 
 def create_departments(num):
+    department_ids = []
     for _ in range(num):
         name = truncate(fake.company(), 60)
         description = truncate(fake.text(max_nb_chars=150), 150)
@@ -213,20 +227,24 @@ def create_departments(num):
             VALUES (DEFAULT, %s, %s)
             RETURNING id;
         ''', (name, description))
+        department_id = cur.fetchone()[0]
+        department_ids.append(department_id)
         conn.commit()
+    return department_ids
 
 # Crear datos de prueba
 department_ids = create_departments(5)
 position_ids = create_positions(10)
-create_users(20)
+user_uuids = create_users(20)
 employee_uuids = create_employees(50, position_ids)
-create_allowances(15)
-create_deductions(15)
-create_employee_allowances(50, employee_uuids)
-create_employee_deductions(50, employee_uuids)
-create_employee_extra_hours(30, employee_uuids)
-create_payrolls(10)
-create_payslips(50, employee_uuids)
+allowance_ids = create_allowances(50)
+deduction_ids = create_deductions(48)
+payroll_ids = create_payrolls(50)
+
+create_employee_allowances(50, employee_uuids, allowance_ids)
+create_employee_deductions(50, employee_uuids, deduction_ids)
+create_employee_extra_hours(35, employee_uuids)
+create_payslips(50, employee_uuids, payroll_ids)
 
 # Cerrar la conexión
 cur.close()
