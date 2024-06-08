@@ -34,6 +34,7 @@ truncate_table('public.employee_extra_hours')
 truncate_table('public.payroll')
 truncate_table('public.payslip')
 truncate_table('public.department')
+truncate_table('public.user_activity_log')
 
 # Reiniciar secuencias manualmente
 reset_sequence('public."Position_id_seq"')
@@ -45,6 +46,7 @@ reset_sequence('public.employee_extra_hours_id_seq')
 reset_sequence('public.payroll_id_seq')
 reset_sequence('public.payslip_id_seq')
 reset_sequence('public.department_id_seq')
+reset_sequence('public.user_activity_log_id_seq')
 
 # Continuar con la inserción de datos de prueba
 def truncate(value, max_length):
@@ -232,6 +234,19 @@ def create_departments(num):
         conn.commit()
     return department_ids
 
+def create_user_activity_log(num, user_uuids):
+    actions = ["login", "logout", "create", "update", "delete"]
+    for _ in range(num):
+        user_fk = random.choice(user_uuids)  # Usar UUIDs válidos de usuarios
+        action = random.choice(actions)
+        action_timestamp = fake.date_time_this_year()
+        cur.execute('''
+            INSERT INTO public.user_activity_log (user_fk, action, action_timestamp)
+            VALUES (%s, %s, %s)
+            RETURNING id;
+        ''', (user_fk, action, action_timestamp))
+        conn.commit()
+
 # Crear datos de prueba
 department_ids = create_departments(5)
 position_ids = create_positions(10)
@@ -245,6 +260,7 @@ create_employee_allowances(50, employee_uuids, allowance_ids)
 create_employee_deductions(50, employee_uuids, deduction_ids)
 create_employee_extra_hours(35, employee_uuids)
 create_payslips(50, employee_uuids, payroll_ids)
+create_user_activity_log(100, user_uuids)
 
 # Cerrar la conexión
 cur.close()
