@@ -10,15 +10,14 @@ select e.name as employee_name, a.name as allowance_name, ea.amount, ea.effectiv
 from public.employee_allowances ea 
 join public.employee e on ea.employee_fk = e."UUID" 
 join public.allowance a on ea.allowance_fk = a.id 
-where ea.employee_fk = 'd658bba9-dce9-4733-96df-d8b5422d37e9';
+where ea.employee_fk = '3719cb50-18c4-401b-9df0-a81ef13ca5f4';
 
 --Deductions of an specific employee
 select e.name as employee_name, d.name as deduction_name, ed.amount, ed.effective_date
 from public.employee_deductions ed 
 join public.employee e on ed.employee_fk = e."UUID" 
 join public.deduction d on ed.deduction_fk = d.id 
-where ed.employee_fk = 'a9a00e22-66da-407a-bcfc-47c7accb3e09';
-select * from employee e ;
+where ed.employee_fk = 'df9407a8-ae9d-4043-b36c-f7bc38a48e42';
 
 --Payrolls created on a date range
 select p.id as payroll_id, pt.name as payroll_type, p.reference_number, p.status, p.date_from, p.date_to, p.date_created
@@ -61,3 +60,33 @@ left join public.employee_deductions ed on e."UUID" = ed.employee_fk and ed.payr
 join public.payroll_type pt on p.paroll_type_fk = pt.id 
 group by pt."name", e."UUID", e."name"
 order by pt."name", e."name";
+
+--Payment history from an specific employee
+select e.name as employee_name, ps.present, ps.absent, ps.salary, ps.allowance_amount, ps.deduction_amount, ps.net, p.date_from, p.date_to, ps.date_created
+from public.payslip ps 
+join public.employee e on ps.employee_fk = e."UUID" 
+join public.payroll p on ps.payroll_fk = p.id 
+where ps.employee_fk = 'd89c9845-6c9e-4144-9d78-9e76002e574c'
+order by p.date_from desc;
+
+select * from employee e ;
+
+--List of all users with their respective role
+select u.name as user_name, u.username, r.name as role_name
+from public."User" u 
+join public."Role" r on u.role_fk = r.id 
+order by u."name" ;
+
+--Quantity of users per role
+select r.name as role_name, count(u."UUID") as user_count
+from public."User" u 
+join public."Role" r on u.role_fk = r.id 
+group by r."name" 
+order by user_count desc;
+
+--Quantity of employees per status
+select s.name as payroll_status, count(e."UUID") as employee_count
+from public.employee e 
+join public.status s on e.status_fk = s.id 
+group by s."name" 
+order by employee_count desc;
