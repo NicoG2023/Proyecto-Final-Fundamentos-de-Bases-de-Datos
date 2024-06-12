@@ -13,6 +13,8 @@ class Employee(BaseModel):
     bank_account: str = Field(max_length=34)
     salary: float
     phone: str = Field(max_length=15)
+    password: str=Field(max_length=50)
+    role_fk: int
 
 class Allowance(BaseModel):
     name: str = Field(max_length=80)
@@ -41,13 +43,6 @@ class Payslip(BaseModel):
     deduction_amount: float
     date_created: date
 
-class User(BaseModel):
-    UUID: uuid.UUID
-    name: str = Field(max_length=80)
-    password: str
-    username: str = Field(max_length=50)
-    role_fk: int
-
 class Department(BaseModel):
     name: str = Field(max_length=60)
     description: str = Field(max_length=150)
@@ -59,7 +54,7 @@ class Position(BaseModel):
 
 
 class UserActivityLog(BaseModel):
-    user_fk: uuid.UUID
+    employee_fk: uuid.UUID
     action: str
     action_timestamp: date
 

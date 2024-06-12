@@ -6,9 +6,6 @@ select * from employee;
 --Delete an outdated allowance entry for an employee
 delete from public.employee_allowances where id = 15;
 
---Delete a user account that is no longer active
-delete from public."User" where "UUID" = 'e6017337-4ca4-4b88-a5db-9576606c9b60';
-
 --Remove a department that has been dissolved
 delete from public.employee 
 where position_fk in (select id from public."Position" where department_fk = 2);

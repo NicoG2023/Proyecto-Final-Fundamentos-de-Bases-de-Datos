@@ -7,8 +7,8 @@ conn = psycopg2.connect(
     dbname="ud_DBFoundations_project",
     user="ud_admin",
     password="HDjZLf03nK69O6IGs4Rg",
-    host="localhost",  # Cambia según sea necesario
-    port="5432"  # Puerto predeterminado para PostgreSQL
+    host="localhost",  # Change as needed
+    port="5432"  # Default port for PostgreSQL
 )
 
 cur = conn.cursor()
@@ -22,42 +22,62 @@ def reset_sequence(sequence_name):
     cur.execute(f'ALTER SEQUENCE {sequence_name} RESTART WITH 1;')
     conn.commit()
 
-# Truncar tablas y reiniciar secuencias antes de insertar nuevos datos
-truncate_table('public."Position"')
-truncate_table('public."User"')
+# Truncate tables and reset sequences before inserting new data
+truncate_table('public.employee_extra_hours')
+truncate_table('public.employee_deductions')
+truncate_table('public.employee_allowances')
+truncate_table('public.payslip')
+truncate_table('public.payroll')
 truncate_table('public.employee')
+truncate_table('public.department')
+truncate_table('public."Position"')
 truncate_table('public.allowance')
 truncate_table('public.deduction')
-truncate_table('public.employee_allowances')
-truncate_table('public.employee_deductions')
-truncate_table('public.employee_extra_hours')
-truncate_table('public.payroll')
-truncate_table('public.payslip')
-truncate_table('public.department')
+truncate_table('public.payroll_type')
+truncate_table('public.status')
+truncate_table('public."Role"')
 truncate_table('public.user_activity_log')
 
-# Reiniciar secuencias manualmente
+# Reset sequences manually
+reset_sequence('public.employee_extra_hours_id_seq')
+reset_sequence('public.employee_deductions_id_seq')
+reset_sequence('public.employee_allowances_id_seq')
+reset_sequence('public.payslip_id_seq')
+reset_sequence('public.payroll_id_seq')
+reset_sequence('public.department_id_seq')
 reset_sequence('public."Position_id_seq"')
 reset_sequence('public.allowance_id_seq')
 reset_sequence('public.deduction_id_seq')
-reset_sequence('public.employee_allowances_id_seq')
-reset_sequence('public.employee_deductions_id_seq')
-reset_sequence('public.employee_extra_hours_id_seq')
-reset_sequence('public.payroll_id_seq')
-reset_sequence('public.payslip_id_seq')
-reset_sequence('public.department_id_seq')
+reset_sequence('public.payroll_type_id_seq')
+reset_sequence('public.status_id_seq')
+reset_sequence('public."Role_id_seq"')
 reset_sequence('public.user_activity_log_id_seq')
 
-# Continuar con la inserción de datos de prueba
+# Continue with the insertion of test data
 def truncate(value, max_length):
     return value if len(value) <= max_length else value[:max_length]
 
-def create_positions(num):
+def create_departments(num):
+    department_ids = []
+    for _ in range(num):
+        name = truncate(fake.company(), 60)
+        description = truncate(fake.text(max_nb_chars=150), 150)
+        cur.execute('''
+            INSERT INTO public.department (id, name, description)
+            VALUES (DEFAULT, %s, %s)
+            RETURNING id;
+        ''', (name, description))
+        department_id = cur.fetchone()[0]
+        department_ids.append(department_id)
+        conn.commit()
+    return department_ids
+
+def create_positions(num, department_ids):
     position_ids = []
     for _ in range(num):
         name = truncate(fake.job(), 50)
         description = truncate(fake.text(max_nb_chars=150), 150)
-        department_fk = random.randint(1, 5)  # Ajustar según los IDs de department existentes
+        department_fk = random.choice(department_ids)
         cur.execute('''
             INSERT INTO public."Position" (id, name, description, department_fk)
             VALUES (DEFAULT, %s, %s, %s)
@@ -68,41 +88,40 @@ def create_positions(num):
         conn.commit()
     return position_ids
 
-def create_users(num):
-    user_uuids = []
-    for _ in range(num):
-        user_uuid = str(uuid.uuid4())
-        name = truncate(fake.name(), 80)
-        password = fake.password()
-        username = truncate(fake.user_name(), 50)
-        role_fk = random.choice([1, 2])  # Solo admin y user
+def create_roles():
+    roles = ['Admin', 'User']
+    role_ids = []
+    for role in roles:
         cur.execute('''
-            INSERT INTO public."User" ("UUID", name, password, username, role_fk)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING "UUID";
-        ''', (user_uuid, name, password, username, role_fk))
-        user_uuids.append(user_uuid)
+            INSERT INTO public."Role" (id, name)
+            VALUES (DEFAULT, %s)
+            RETURNING id;
+        ''', (role,))
+        role_id = cur.fetchone()[0]
+        role_ids.append(role_id)
         conn.commit()
-    return user_uuids
+    return role_ids
 
-def create_employees(num, position_ids):
+def create_employees(num, position_ids, role_ids, status_ids):
     employee_uuids = []
     for _ in range(num):
         employee_uuid = str(uuid.uuid4())
         employee_code = truncate(fake.unique.ean(length=8), 10)
         name = truncate(fake.name(), 200)
-        position_fk = random.choice(position_ids)  # Usar IDs válidos de Position
+        position_fk = random.choice(position_ids)
         lastname = truncate(fake.last_name(), 200)
         email = truncate(fake.email(), 100)
-        status_fk = random.choice([1, 2])  # Solo New y Computed
+        status_fk = random.choice(status_ids)
         bank_account = fake.iban()
         salary = round(random.uniform(30000, 100000), 2)
-        phone = truncate(fake.phone_number(), 15)  # Ajustar el tamaño máximo del teléfono
+        phone = truncate(fake.phone_number(), 15)
+        password = fake.password()
+        role_fk = random.choice(role_ids)
         cur.execute('''
-            INSERT INTO public.employee ("UUID", employee_code, name, position_fk, lastname, email, status_fk, bank_account, salary, phone)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO public.employee ("UUID", employee_code, name, position_fk, lastname, email, status_fk, bank_account, salary, phone, password, role_fk)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING "UUID";
-        ''', (employee_uuid, employee_code, name, position_fk, lastname, email, status_fk, bank_account, salary, phone))
+        ''', (employee_uuid, employee_code, name, position_fk, lastname, email, status_fk, bank_account, salary, phone, password, role_fk))
         employee_uuids.append(employee_uuid)
         conn.commit()
     return employee_uuids
@@ -139,9 +158,9 @@ def create_deductions(num):
 
 def create_employee_allowances(num, employee_uuids, allowance_ids):
     for _ in range(num):
-        employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
-        allowance_fk = random.choice(allowance_ids)  # Usar IDs válidos de allowance
-        payroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
+        employee_fk = random.choice(employee_uuids)
+        allowance_fk = random.choice(allowance_ids)
+        payroll_type_fk = random.choice([1, 2, 3])
         effective_date = fake.date()
         date_created = fake.unix_time()
         amount = round(random.uniform(100, 1000), 2)
@@ -154,9 +173,9 @@ def create_employee_allowances(num, employee_uuids, allowance_ids):
 
 def create_employee_deductions(num, employee_uuids, deduction_ids):
     for _ in range(num):
-        employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
-        deduction_fk = random.choice(deduction_ids)  # Usar IDs válidos de deduction
-        payroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
+        employee_fk = random.choice(employee_uuids)
+        deduction_fk = random.choice(deduction_ids)
+        payroll_type_fk = random.choice([1, 2, 3])
         amount = round(random.uniform(100, 1000), 2)
         effective_date = fake.date()
         date_created = fake.unix_time()
@@ -173,8 +192,8 @@ def create_employee_extra_hours(num, employee_uuids):
         amount = round(random.uniform(10, 100), 2)
         effective_date = fake.date()
         date_created = fake.unix_time()
-        employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
-        payroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
+        employee_fk = random.choice(employee_uuids)
+        payroll_type_fk = random.choice([1, 2, 3])
         cur.execute('''
             INSERT INTO public.employee_extra_hours (id, hours, amount, effective_date, date_created, employee_fk, payroll_type_fk)
             VALUES (DEFAULT, %s, %s, %s, %s, %s, %s)
@@ -182,10 +201,38 @@ def create_employee_extra_hours(num, employee_uuids):
         ''', (hours, amount, effective_date, date_created, employee_fk, payroll_type_fk))
         conn.commit()
 
-def create_payrolls(num):
+def create_payroll_types():
+    payroll_types = ['Monthly', 'Semi-Monthly', 'Once']
+    payroll_type_ids = []
+    for payroll_type in payroll_types:
+        cur.execute('''
+            INSERT INTO public.payroll_type (id, name)
+            VALUES (DEFAULT, %s)
+            RETURNING id;
+        ''', (payroll_type,))
+        payroll_type_id = cur.fetchone()[0]
+        payroll_type_ids.append(payroll_type_id)
+        conn.commit()
+    return payroll_type_ids
+
+def create_statuses():
+    statuses = ['New', 'Computed']
+    status_ids = []
+    for status in statuses:
+        cur.execute('''
+            INSERT INTO public.status (id, name, comments)
+            VALUES (DEFAULT, %s, %s)
+            RETURNING id;
+        ''', (status, fake.text(max_nb_chars=100)))
+        status_id = cur.fetchone()[0]
+        status_ids.append(status_id)
+        conn.commit()
+    return status_ids
+
+def create_payrolls(num, payroll_type_ids):
     payroll_ids = []
     for _ in range(num):
-        paroll_type_fk = random.choice([1, 2, 3])  # Solo Monthly, Semi-Monthly y Once
+        paroll_type_fk = random.choice(payroll_type_ids)
         reference_number = truncate(fake.unique.ean(length=8), 80)
         status = random.randint(0, 1)
         date_from = fake.date()
@@ -203,8 +250,8 @@ def create_payrolls(num):
 
 def create_payslips(num, employee_uuids, payroll_ids):
     for _ in range(num):
-        payroll_fk = random.choice(payroll_ids)  # Usar IDs válidos de payroll
-        employee_fk = random.choice(employee_uuids)  # Usar UUIDs válidos de empleados
+        payroll_fk = random.choice(payroll_ids)
+        employee_fk = random.choice(employee_uuids)
         present = random.randint(0, 30)
         absent = random.randint(0, 30)
         salary = round(random.uniform(1000, 5000), 2)
@@ -219,49 +266,36 @@ def create_payslips(num, employee_uuids, payroll_ids):
         ''', (payroll_fk, employee_fk, present, absent, salary, allowance_amount, net, deduction_amount, date_created))
         conn.commit()
 
-def create_departments(num):
-    department_ids = []
-    for _ in range(num):
-        name = truncate(fake.company(), 60)
-        description = truncate(fake.text(max_nb_chars=150), 150)
-        cur.execute('''
-            INSERT INTO public.department (id, name, description)
-            VALUES (DEFAULT, %s, %s)
-            RETURNING id;
-        ''', (name, description))
-        department_id = cur.fetchone()[0]
-        department_ids.append(department_id)
-        conn.commit()
-    return department_ids
-
-def create_user_activity_log(num, user_uuids):
+def create_user_activity_log(num, employee_uuids):
     actions = ["login", "logout", "create", "update", "delete"]
     for _ in range(num):
-        user_fk = random.choice(user_uuids)  # Usar UUIDs válidos de usuarios
+        employee_fk = random.choice(employee_uuids)
         action = random.choice(actions)
         action_timestamp = fake.date_time_this_year()
         cur.execute('''
-            INSERT INTO public.user_activity_log (user_fk, action, action_timestamp)
+            INSERT INTO public.user_activity_log (employee_fk, action, action_timestamp)
             VALUES (%s, %s, %s)
             RETURNING id;
-        ''', (user_fk, action, action_timestamp))
+        ''', (employee_fk, action, action_timestamp))
         conn.commit()
 
-# Crear datos de prueba
+# Create test data
 department_ids = create_departments(5)
-position_ids = create_positions(10)
-user_uuids = create_users(20)
-employee_uuids = create_employees(50, position_ids)
+position_ids = create_positions(10, department_ids)
+role_ids = create_roles()
+status_ids = create_statuses()
+payroll_type_ids = create_payroll_types()
 allowance_ids = create_allowances(50)
 deduction_ids = create_deductions(48)
-payroll_ids = create_payrolls(50)
+payroll_ids = create_payrolls(50, payroll_type_ids)
 
+employee_uuids = create_employees(20, position_ids, role_ids, status_ids)
 create_employee_allowances(50, employee_uuids, allowance_ids)
 create_employee_deductions(50, employee_uuids, deduction_ids)
 create_employee_extra_hours(35, employee_uuids)
 create_payslips(50, employee_uuids, payroll_ids)
-create_user_activity_log(100, user_uuids)
+create_user_activity_log(100, employee_uuids)
 
-# Cerrar la conexión
+# Close the connection
 cur.close()
 conn.close()

@@ -71,18 +71,26 @@ order by p.date_from desc;
 
 select * from employee e ;
 
---List of all users with their respective role
-select u.name as user_name, u.username, r.name as role_name
-from public."User" u 
-join public."Role" r on u.role_fk = r.id 
-order by u."name" ;
+--List of all employees with their respective role
+CREATE OR REPLACE PROCEDURE count_users_per_role()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT r.name AS role_name, COUNT(e."UUID") AS employee_count
+    FROM public.employee e 
+    JOIN public."Role" r ON e.role_fk = r.id 
+    GROUP BY r.name 
+    ORDER BY employee_count DESC;
+END;
+$$;
+
 
 --Quantity of users per role
-select r.name as role_name, count(u."UUID") as user_count
-from public."User" u 
-join public."Role" r on u.role_fk = r.id 
+select r.name as role_name, count(e."UUID") as employee_count
+from public.employee e 
+join public."Role" r on e.role_fk = r.id 
 group by r."name" 
-order by user_count desc;
+order by employee_count desc;
 
 --Quantity of employees per status
 select s.name as payroll_status, count(e."UUID") as employee_count

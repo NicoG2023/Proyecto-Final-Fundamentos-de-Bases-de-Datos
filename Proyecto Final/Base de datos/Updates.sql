@@ -14,9 +14,10 @@ select * from employee e where "UUID" = 'de7d1f21-6b75-42c4-9092-90939d9a40c5';
 update public.employee set email = '' where "UUID" = '2b42ad01-c9a4-471b-9f73-cfeaab5e1834';
 select * from employee e where "UUID" = '2b42ad01-c9a4-471b-9f73-cfeaab5e1834';
 
---Update a user's role
-update public."User" set role_fk = 2 where "UUID" = '9366a625-9384-4213-a1f5-01ee3394aadd';
-select * from "User" u where "UUID" = '9366a625-9384-4213-a1f5-01ee3394aadd';
+--Update a employee's role
+update public.employee set role_fk = 2 where "UUID" = '';
+select * from public.employee e where "UUID" = '';
+select * from employee e ;
 
 --Update the number of extra hours worked by an employee
 update public.employee_extra_hours set hours = 15, amount = 8000 where id = 20;
